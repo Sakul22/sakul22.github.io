@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <meta name="theme-color" content="#080808"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Tabata"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <title>Tabata</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{background:#080808;color:#fff;font-family:'Bebas Neue',sans-serif;overscroll-behavior:none;min-height:100vh}
+    input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:#1e1e1e;border-radius:2px;outline:none;cursor:pointer}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent,#ff4d00)}
+    .pill{border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;letter-spacing:3px;border-radius:6px;transition:all 0.15s}
+    .pill:active{transform:scale(0.97)}
+    .counter-btn{background:#111;border:1px solid #1e1e1e;color:#3a3a3a;border-radius:6px;cursor:pointer;font-size:0.65rem;width:44px;height:30px;display:flex;align-items:center;justify-content:center;transition:all 0.12s;font-family:monospace}
+    .counter-btn:active{background:#1a1a1a;color:#fff}
+    .music-wrap{display:flex;flex-direction:column;gap:10px}
+    @media(min-width:560px){.music-wrap{flex-direction:row}}
+    #app{display:flex;flex-direction:column;align-items:center;padding:clamp(12px,4vw,24px) clamp(10px,4vw,20px) 60px}
+    .inner{width:100%;max-width:540px}
+    .mono{font-family:'Space Mono',monospace}
+    .card{background:#0c0c0c;border:1px solid #181818;border-radius:12px}
+    #install-banner{display:none;position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #1e1e1e;padding:12px 16px;z-index:100;flex-direction:column;gap:8px;font-family:'Space Mono',monospace;font-size:0.55rem;color:#aaa}
+    #install-banner.show{display:flex}
+    #install-banner button{background:#ff4d00;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer}
+    .close-banner{background:none!important;border:none!important;color:#444!important;cursor:pointer;font-size:1rem!important;align-self:flex-end;padding:0!important;letter-spacing:0!important;font-family:monospace!important}
+    .upload-box{border:1.5px dashed #1e1e1e;border-radius:8px;padding:10px 14px;background:#111;cursor:pointer;transition:border-color 0.2s}
+    .upload-box.has-file{border-color:var(--zcolor);border-style:solid}
+    .upload-box:active{background:#141414}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="inner">
+
+    <!-- Title -->
+    <div style="text-align:center;margin-bottom:18px">
+      <div class="mono" style="font-size:0.45rem;letter-spacing:8px;color:#1e1e1e;margin-bottom:2px">INTERVAL TRAINER</div>
+      <div style="font-size:clamp(3rem,12vw,5rem);letter-spacing:8px;line-height:0.95">TABATA</div>
+      <div id="accent-bar" style="width:28px;height:2px;background:#ff4d00;margin:8px auto 0;transition:background 0.4s"></div>
+    </div>
+
+    <!-- Timer ring -->
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:18px">
+      <div style="position:relative;width:210px;height:210px">
+        <svg width="210" height="210" style="position:absolute;transform:rotate(-90deg)">
+          <circle cx="105" cy="105" r="98" fill="none" stroke="#141414" stroke-width="5"/>
+          <circle id="ring" cx="105" cy="105" r="98" fill="none" stroke="#ff4d00" stroke-width="5"
+            stroke-dasharray="615.75" stroke-dashoffset="615.75" stroke-linecap="round"
+            style="transition:stroke-dashoffset 0.95s linear,stroke 0.4s"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px">
+          <div id="phase-lbl" class="mono" style="font-size:0.43rem;letter-spacing:6px;color:#ff4d00;transition:color 0.4s;opacity:0">EFFORT</div>
+          <div id="timer" style="font-size:clamp(2.6rem,9vw,3.8rem);line-height:1;color:#1e1e1e">--:--</div>
+          <div id="rep-lbl" class="mono" style="font-size:0.42rem;letter-spacing:3px;color:#282828">PRÊT</div>
+          <div id="music-lbl" class="mono" style="font-size:0.38rem;letter-spacing:1px;color:#ff4d0055;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px"></div>
+        </div>
+      </div>
+      <div id="dots" style="display:flex;gap:5px;margin-top:10px;flex-wrap:wrap;justify-content:center;max-width:250px;min-height:12px"></div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings">
+      <!-- Counters -->
+      <div class="card" style="padding:16px 10px;margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span class="mono" style="font-size:0.48rem;letter-spacing:4px;color:#3a3a3a">EFFORT</span>
+            <button class="counter-btn" onclick="adj('effort',5)">▲</button>
+            <div id="v-effort" style="background:#111;border:1.5px solid #1e1e1e;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:2.2rem;width:68px;text-align:center;border-radius:8px;padding:2px 0">40</div>
+            <button class="counter-btn" onclick="adj('effort',-5)">▼</button>
+            <span class="mono" style="font-size:0.45rem;color:#2a2a2a">sec</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span class="mono" style="font-size:0.48rem;letter-spacing:4px;color:#3a3a3a">REPOS</span>
+            <button class="counter-btn" onclick="adj('rest',5)">▲</button>
+            <div id="v-rest" style="background:#111;border:1.5px solid #1e1e1e;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:2.2rem;width:68px;text-align:center;border-radius:8px;padding:2px 0">20</div>
+            <button class="counter-btn" onclick="adj('rest',-5)">▼</button>
+            <span class="mono" style="font-size:0.45rem;color:#2a2a2a">sec</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span class="mono" style="font-size:0.48rem;letter-spacing:4px;color:#3a3a3a">REPS</span>
+            <button class="counter-btn" onclick="adj('reps',1)">▲</button>
+            <div id="v-reps" style="background:#111;border:1.5px solid #1e1e1e;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:2.2rem;width:68px;text-align:center;border-radius:8px;padding:2px 0">8</div>
+            <button class="counter-btn" onclick="adj('reps',-1)">▼</button>
+            <span class="mono" style="font-size:0.45rem;color:#2a2a2a">×</span>
+          </div>
+        </div>
+        <div id="total" class="mono" style="text-align:center;margin-top:12px;font-size:0.45rem;color:#1e1e1e;letter-spacing:2px">DURÉE TOTALE : 04:48</div>
+      </div>
+
+      <!-- Music -->
+      <div class="card" style="padding:14px 12px;margin-bottom:12px">
+        <div class="mono" style="font-size:0.45rem;letter-spacing:5px;color:#1e1e1e;margin-bottom:6px">MUSIQUE</div>
+
+        <!-- Format tip -->
+        <div class="mono" style="font-size:0.42rem;color:#2a2a2a;line-height:1.9;margin-bottom:12px;background:#0a0a0a;border-radius:6px;padding:8px 12px">
+          ✅ Formats acceptés : <span style="color:#888">MP3 · AAC · M4A · WAV · OGG · FLAC</span><br/>
+          📲 Pour télécharger depuis <span style="color:#888">Spotify / Apple Music / YouTube</span> :<br/>
+          &nbsp;&nbsp;→ App <span style="color:#ff4d00">Downie</span> (Mac) &nbsp;·&nbsp; <span style="color:#ff4d00">Documents by Readdle</span> (iPhone)<br/>
+          &nbsp;&nbsp;→ Site <span style="color:#ff4d00">yt-mp3.com</span> ou <span style="color:#ff4d00">spotifydown.com</span> (navigateur)<br/>
+          &nbsp;&nbsp;→ Exporte en <span style="color:#ff4d00">MP3</span> — fonctionne partout
+        </div>
+
+        <div class="music-wrap">
+          <!-- Effort -->
+          <div style="flex:1;background:#0a0a0a;border:1px solid #181818;border-radius:10px;padding:12px 14px">
+            <div class="mono" style="font-size:0.48rem;letter-spacing:5px;color:#ff4d00;margin-bottom:10px">🔥 EFFORT</div>
+            <label style="cursor:pointer">
+              <input type="file" id="file-effort" accept="audio/*,video/mp4,video/webm" style="display:none" onchange="loadAudio('effort',this)"/>
+              <div class="upload-box" id="box-effort" style="--zcolor:#ff4d00">
+                <div class="mono" style="font-size:0.5rem;color:#2a2a2a" id="name-effort">📂 Choisir un fichier audio</div>
+              </div>
+            </label>
+            <div id="vol-effort" style="display:none;margin-top:8px;display:none;align-items:center;gap:8px">
+              <span class="mono" style="font-size:0.42rem;color:#2a2a2a;flex-shrink:0">VOL</span>
+              <input type="range" min="0" max="1" step="0.05" value="0.8" style="--accent:#ff4d00;flex:1" oninput="setVol('effort',this.value)"/>
+            </div>
+          </div>
+          <!-- Rest -->
+          <div style="flex:1;background:#0a0a0a;border:1px solid #181818;border-radius:10px;padding:12px 14px">
+            <div class="mono" style="font-size:0.48rem;letter-spacing:5px;color:#00c8ff;margin-bottom:10px">💧 REPOS</div>
+            <label style="cursor:pointer">
+              <input type="file" id="file-rest" accept="audio/*,video/mp4,video/webm" style="display:none" onchange="loadAudio('rest',this)"/>
+              <div class="upload-box" id="box-rest" style="--zcolor:#00c8ff">
+                <div class="mono" style="font-size:0.5rem;color:#2a2a2a" id="name-rest">📂 Choisir un fichier audio</div>
+              </div>
+            </label>
+            <div id="vol-rest" style="display:none;margin-top:8px;align-items:center;gap:8px">
+              <span class="mono" style="font-size:0.42rem;color:#2a2a2a;flex-shrink:0">VOL</span>
+              <input type="range" min="0" max="1" step="0.05" value="0.6" style="--accent:#00c8ff;flex:1" oninput="setVol('rest',this.value)"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div id="btns" style="display:flex;gap:8px"></div>
+
+  </div>
+</div>
+
+<!-- Install banner -->
+<div id="install-banner">
+  <span id="banner-txt">📲 Installe Tabata sur ton écran d'accueil</span>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button id="install-btn">INSTALLER</button>
+    <button class="pill close-banner" id="close-banner">✕</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+const S = { effort:40, rest:20, reps:8, phase:'idle', timeLeft:0, rep:0 };
+const AUDIO = { effort:null, rest:null, effortVol:0.8, restVol:0.6, effortName:'', restName:'' };
+let ticker = null;
+const C = 615.75; // 2π×98
+
+// ── AUDIO LOAD ─────────────────────────────────────────
+function loadAudio(type, input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Revoke old
+  if (AUDIO[type] && AUDIO[type].src.startsWith('blob:')) {
+    URL.revokeObjectURL(AUDIO[type].src);
+  }
+
+  // Works for audio AND video files — we just extract the audio stream
+  const url = URL.createObjectURL(file);
+  const a = new Audio();
+  a.src = url;
+  a.loop = true;
+  a.volume = type === 'effort' ? AUDIO.effortVol : AUDIO.restVol;
+
+  // Preload
+  a.load();
+  a.addEventListener('canplaythrough', () => {}, { once: true });
+
+  AUDIO[type] = a;
+  AUDIO[type + 'Name'] = file.name.replace(/\.[^.]+$/, ''); // strip extension
+
+  // UI update
+  const nameEl = document.getElementById('name-' + type);
+  const boxEl  = document.getElementById('box-' + type);
+  const volEl  = document.getElementById('vol-' + type);
+  nameEl.textContent = '♪ ' + AUDIO[type + 'Name'];
+  nameEl.style.color = type === 'effort' ? '#ff4d00' : '#00c8ff';
+  boxEl.classList.add('has-file');
+  volEl.style.display = 'flex';
+}
+
+function setVol(type, val) {
+  AUDIO[type + 'Vol'] = +val;
+  if (AUDIO[type]) AUDIO[type].volume = +val;
+}
+
+// ── AUDIO PLAY/STOP ────────────────────────────────────
+function stopAll() {
+  ['effort','rest'].forEach(t => {
+    if (AUDIO[t]) {
+      AUDIO[t].pause();
+      AUDIO[t].currentTime = 0;
+    }
+  });
+}
+
+function playType(type) {
+  stopAll();
+  const a = AUDIO[type];
+  if (!a) return;
+  a.currentTime = 0;
+  // Use a promise chain to handle autoplay policy
+  const p = a.play();
+  if (p !== undefined) {
+    p.catch(() => {
+      // Retry once after tiny delay (handles some mobile browsers)
+      setTimeout(() => a.play().catch(() => {}), 100);
+    });
+  }
+}
+
+// ── COUNTER ────────────────────────────────────────────
+function adj(k, d) {
+  const lim = { effort:[5,120], rest:[5,120], reps:[1,30] };
+  S[k] = Math.max(lim[k][0], Math.min(lim[k][1], S[k] + d));
+  document.getElementById('v-effort').textContent = S.effort;
+  document.getElementById('v-rest').textContent   = S.rest;
+  document.getElementById('v-reps').textContent   = S.reps;
+  document.getElementById('total').textContent    = 'DURÉE TOTALE : ' + fmt(S.reps * (S.effort + S.rest));
+}
+
+// ── TIMER ──────────────────────────────────────────────
+function start() {
+  S.rep = 1;
+  S.phase = 'effort';
+  S.timeLeft = S.effort;
+  playType('effort');
+  tick();
+}
+
+function tick() {
+  clearInterval(ticker);
+  render();
+  ticker = setInterval(() => {
+    S.timeLeft--;
+    if (S.timeLeft <= 0) {
+      clearInterval(ticker);
+      if (S.phase === 'effort') {
+        S.phase = 'rest';
+        S.timeLeft = S.rest;
+        playType('rest');
+      } else {
+        if (S.rep >= S.reps) {
+          S.phase = 'done';
+          stopAll();
+          render(); return;
+        }
+        S.rep++;
+        S.phase = 'effort';
+        S.timeLeft = S.effort;
+        playType('effort');
+      }
+      tick(); return;
+    }
+    render();
+  }, 1000);
+}
+
+function reset() {
+  clearInterval(ticker);
+  stopAll();
+  S.phase = 'idle'; S.timeLeft = 0; S.rep = 0;
+  render();
+}
+
+// ── RENDER ─────────────────────────────────────────────
+const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
+function render() {
+  const running = S.phase === 'effort' || S.phase === 'rest';
+  const effort  = S.phase === 'effort';
+  const rest    = S.phase === 'rest';
+  const done    = S.phase === 'done';
+  const ac      = rest ? '#00c8ff' : done ? '#00ff88' : '#ff4d00';
+
+  // Accent
+  document.getElementById('accent-bar').style.background = ac;
+  document.getElementById('ring').style.stroke = ac;
+
+  // Ring progress
+  const max = effort ? S.effort : S.rest;
+  const elapsed = effort ? S.effort - S.timeLeft : S.rest - S.timeLeft;
+  const pct = running ? elapsed / max : 0;
+  document.getElementById('ring').style.strokeDashoffset = C - pct * C;
+
+  // Phase label
+  const pl = document.getElementById('phase-lbl');
+  pl.style.opacity = running ? '1' : '0';
+  pl.style.color   = ac;
+  pl.textContent   = effort ? 'EFFORT' : 'REPOS';
+
+  // Timer
+  const td = document.getElementById('timer');
+  if (S.phase === 'idle') { td.textContent = '--:--'; td.style.color = '#1e1e1e'; td.style.fontSize = 'clamp(2.6rem,9vw,3.8rem)'; }
+  else if (done)          { td.textContent = 'FINI !'; td.style.color = '#00ff88'; td.style.fontSize = '2.2rem'; }
+  else                    { td.textContent = fmt(S.timeLeft); td.style.color = '#fff'; td.style.fontSize = 'clamp(2.6rem,9vw,3.8rem)'; }
+
+  // Rep label
+  const rl = document.getElementById('rep-lbl');
+  if (S.phase === 'idle') { rl.textContent = 'PRÊT'; rl.style.color = '#1e1e1e'; }
+  else if (done)          { rl.textContent = S.reps + ' REPS ✓'; rl.style.color = '#282828'; }
+  else                    { rl.textContent = 'REP ' + S.rep + ' / ' + S.reps; rl.style.color = '#282828'; }
+
+  // Music label
+  const ml = document.getElementById('music-lbl');
+  if (running) {
+    const name = effort ? AUDIO.effortName : AUDIO.restName;
+    ml.textContent = name ? (effort ? '🔥 ' : '💧 ') + name : '';
+    ml.style.color = ac + '66';
+  } else { ml.textContent = ''; }
+
+  // Dots
+  const dotsEl = document.getElementById('dots');
+  dotsEl.innerHTML = '';
+  if (running) {
+    for (let i = 0; i < S.reps; i++) {
+      const d = document.createElement('div');
+      d.style.cssText = `width:7px;height:7px;border-radius:50%;background:${i < S.rep ? ac : '#181818'};opacity:${i < S.rep - 1 ? 0.4 : 1};transition:background 0.3s`;
+      dotsEl.appendChild(d);
+    }
+  }
+
+  // Settings
+  document.getElementById('settings').style.display = (running || done) ? 'none' : 'block';
+
+  // Buttons
+  const ba = document.getElementById('btns');
+  ba.innerHTML = '';
+  if (S.phase === 'idle') {
+    const b = document.createElement('button');
+    b.className = 'pill';
+    b.style.cssText = 'flex:1;padding:15px 0;font-size:clamp(1.5rem,5vw,2.2rem);letter-spacing:5px;background:#ff4d00;color:#fff;box-shadow:0 0 30px rgba(255,77,0,0.2)';
+    b.textContent = 'DÉMARRER';
+    b.onclick = start;
+    ba.appendChild(b);
+  } else if (running) {
+    const b = document.createElement('button');
+    b.className = 'pill';
+    b.style.cssText = 'flex:1;padding:15px 0;font-size:1.5rem;letter-spacing:4px;background:#111;color:#383838;border:1px solid #1a1a1a';
+    b.textContent = '■  STOP';
+    b.onclick = reset;
+    ba.appendChild(b);
+  } else if (done) {
+    const b1 = document.createElement('button');
+    b1.className = 'pill';
+    b1.style.cssText = 'flex:1;padding:15px 0;font-size:1.8rem;letter-spacing:4px;background:#ff4d00;color:#fff';
+    b1.textContent = 'REJOUER';
+    b1.onclick = start;
+    const b2 = document.createElement('button');
+    b2.className = 'pill';
+    b2.style.cssText = 'padding:15px 18px;font-size:1.5rem;background:#111;color:#383838;border:1px solid #1a1a1a';
+    b2.textContent = '↩';
+    b2.onclick = reset;
+    ba.appendChild(b1);
+    ba.appendChild(b2);
+  }
+}
+
+render();
+
+// ── PWA INSTALL ────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('show');
+});
+document.getElementById('install-btn').onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('install-banner').classList.remove('show');
+};
+document.getElementById('close-banner').onclick = () =>
+  document.getElementById('install-banner').classList.remove('show');
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode:standalone)').matches;
+if (isIOS && !isStandalone) {
+  document.getElementById('banner-txt').textContent = '📲 Safari → icône ⬆ Partager → "Sur l\'écran d\'accueil"';
+  document.getElementById('install-btn').style.display = 'none';
+  document.getElementById('install-banner').classList.add('show');
+}
+
+if ('serviceWorker' in navigator)
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+</script>
+</body>
+</html>
